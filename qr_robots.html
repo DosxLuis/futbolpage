@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Robot Futbol - Marcador y QRs</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Roboto', sans-serif; 
+      background: radial-gradient(circle at center, #1a1a2e 0%, #0f0f1a 100%); 
+      color: white; 
+      height: 100vh;
+      display: flex; 
+      flex-direction: column;
+      align-items: center; 
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Screen Management */
+    .screen {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.5s ease-in-out;
+      position: absolute;
+      top: 0; left: 0;
+    }
+    .hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.95);
+      z-index: -1;
+    }
+
+    /* --- SETUP SCREEN (QR CODES) --- */
+    .setup-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 3rem;
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+
+    .cards-container {
+      display: flex; gap: 40px; flex-wrap: wrap; justify-content: center;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px 25px;
+      width: 300px;
+      text-align: center;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+      border-top: 8px solid var(--color);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      transition: transform 0.3s;
+    }
+    .card:hover { transform: translateY(-5px); }
+    .card.azul { --color: #00f2ff; }
+    .card.rojo { --color: #ff3333; }
+
+    .emoji { font-size: 50px; margin-bottom: 10px; filter: drop-shadow(0 0 10px var(--color));}
+    .robot-name { 
+      font-family: 'Orbitron', sans-serif; 
+      font-size: 24px; font-weight: 900; 
+      color: var(--color); margin-bottom: 4px; 
+      text-shadow: 0 0 15px var(--color);
+    }
+    .subtitle { font-size: 14px; color: #aaa; margin-bottom: 20px; letter-spacing: 1px; }
+
+    .qr-box { 
+      background: white; padding: 15px; border-radius: 12px; display: inline-block;
+      border: 3px solid var(--color); margin-bottom: 20px;
+      box-shadow: 0 0 20px rgba(255,255,255,0.2);
+    }
+
+    .btn-start {
+      position: absolute;
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 15px 40px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: white;
+      background: linear-gradient(45deg, #00f2ff, #0055ff);
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
+      transition: all 0.3s;
+      z-index: 10;
+    }
+    .btn-start:hover {
+      transform: translateY(-50%) scale(1.05);
+      box-shadow: 0 0 30px rgba(0, 242, 255, 0.7);
+    }
+
+    /* --- GAME SCREEN (SCOREBOARD) --- */
+    .game-board {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      width: 90%;
+      max-width: 1200px;
+    }
+
+    .team-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .team-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.5rem;
+      font-weight: 900;
+      margin-bottom: 15px;
+      color: var(--theme);
+      text-shadow: 0 0 20px var(--theme);
+    }
+
+    .score-box {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 8rem;
+      font-weight: 900;
+      background: rgba(0,0,0,0.6);
+      width: 250px;
+      height: 250px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 30px;
+      border: 4px solid var(--theme);
+      box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 0 30px rgba(var(--theme-rgb), 0.3);
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .team-panel.azul { --theme: #00f2ff; --theme-rgb: 0, 242, 255; }
+    .team-panel.rojo { --theme: #ff3333; --theme-rgb: 255, 51, 51; }
+
+    .score-controls {
+      display: flex;
+      gap: 15px;
+    }
+
+    .btn-score {
+      font-size: 2rem;
+      width: 60px;
+      height: 60px;
+      border-radius: 15px;
+      border: 2px solid var(--theme);
+      background: transparent;
+      color: var(--theme);
+      cursor: pointer;
+      font-family: 'Orbitron', sans-serif;
+      transition: all 0.2s;
+    }
+    .btn-score:hover {
+      background: var(--theme);
+      color: #000;
+      box-shadow: 0 0 15px var(--theme);
+    }
+
+    .center-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .timer-display {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 6rem;
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 0 20px rgba(255,255,255,0.5);
+      margin-bottom: 30px;
+      background: rgba(255,255,255,0.05);
+      padding: 10px 40px;
+      border-radius: 20px;
+      border: 2px solid rgba(255,255,255,0.2);
+    }
+
+    .timer-display.danger {
+      color: #ff3333;
+      text-shadow: 0 0 20px #ff3333;
+      animation: pulse 1s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { transform: scale(1); }
+      to { transform: scale(1.05); }
+    }
+
+    .timer-controls {
+      display: flex;
+      gap: 15px;
+    }
+
+    .btn-timer {
+      padding: 12px 25px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.2rem;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-timer:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: white;
+    }
+
+    /* Winner Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s;
+      z-index: 100;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .winner-card {
+      background: #111;
+      padding: 50px 80px;
+      border-radius: 30px;
+      text-align: center;
+      border: 4px solid #fff;
+      box-shadow: 0 0 50px rgba(255,255,255,0.3);
+      transform: scale(0.8);
+      transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .modal-overlay.active .winner-card {
+      transform: scale(1);
+    }
+
+    .winner-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 3rem;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+
+    .winner-team {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 4rem;
+      font-weight: 900;
+      margin-bottom: 30px;
+      text-transform: uppercase;
+    }
+
+    .btn-restart {
+      padding: 15px 40px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.2rem;
+      background: white;
+      color: black;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+    .btn-restart:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(255,255,255,0.5);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= PANTALLA SETUP (QRs) ================= -->
+  <div id="setup-screen" class="screen">
+    <h1 class="setup-title">PREPARAR PARTIDO</h1>
+    <div class="cards-container">
+      <!-- ROBOT 1 - AZUL -->
+      <div class="card azul">
+        <div class="emoji">🔵</div>
+        <div class="robot-name">EQUIPO AZUL</div>
+        <div class="subtitle">ROBOT 1</div>
+        <div class="qr-box" id="qr1"></div>
+        <div style="text-align:left; font-size:14px; color:#ccc;">
+          1. Escanea el QR<br>
+          2. Únete a "RobotFutbol"<br>
+          3. Abre en navegador 192.168.4.1 si no redirige.
+        </div>
+      </div>
+
+      <!-- ROBOT 2 - ROJO -->
+      <div class="card rojo">
+        <div class="emoji">🔴</div>
+        <div class="robot-name">EQUIPO ROJO</div>
+        <div class="subtitle">ROBOT 2</div>
+        <div class="qr-box" id="qr2"></div>
+        <div style="text-align:left; font-size:14px; color:#ccc;">
+          1. Escanea el QR<br>
+          2. Únete a "RobotFutbol2"<br>
+          3. Abre en navegador 192.168.4.1 si no redirige.
+        </div>
+      </div>
+    </div>
+    
+    <button class="btn-start" onclick="showGameScreen()">COMENZAR PARTIDO</button>
+  </div>
+
+
+  <!-- ================= PANTALLA JUEGO (MARCADOR) ================= -->
+  <div id="game-screen" class="screen hidden">
+    <div class="game-board">
+      
+      <!-- EQUIPO AZUL -->
+      <div class="team-panel azul">
+        <div class="team-name">EQUIPO AZUL</div>
+        <div class="score-box" id="score-azul">0</div>
+        <div class="score-controls">
+          <button class="btn-score" onclick="changeScore('azul', 1)">+</button>
+          <button class="btn-score" onclick="changeScore('azul', -1)">-</button>
+        </div>
+      </div>
+
+      <!-- TIMER CENTRAL -->
+      <div class="center-panel">
+        <div class="timer-display" id="timer">05:00</div>
+        <div class="timer-controls">
+          <button class="btn-timer" id="btn-playpause" onclick="toggleTimer()">INICIAR</button>
+          <button class="btn-timer" onclick="resetTimer()">REINICIAR</button>
+        </div>
+      </div>
+
+      <!-- EQUIPO ROJO -->
+      <div class="team-panel rojo">
+        <div class="team-name">EQUIPO ROJO</div>
+        <div class="score-box" id="score-rojo">0</div>
+        <div class="score-controls">
+          <button class="btn-score" onclick="changeScore('rojo', 1)">+</button>
+          <button class="btn-score" onclick="changeScore('rojo', -1)">-</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ================= MODAL DE GANADOR ================= -->
+  <div class="modal-overlay" id="winner-modal">
+    <div class="winner-card" id="winner-card-bg">
+      <div class="winner-title">¡TIEMPO AGOTADO!</div>
+      <div class="winner-team" id="winner-text">EMPATE</div>
+      <button class="btn-restart" onclick="newGame()">NUEVO PARTIDO</button>
+    </div>
+  </div>
+
+
+  <script>
+    // --- QR GENERATION ---
+    new QRCode(document.getElementById("qr1"), {
+      text: "WIFI:T:WPA;S:RobotFutbol;P:goat0204;H:false;;",
+      width: 220, height: 220,
+      colorDark: "#0077cc", colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.M
+    });
+
+    new QRCode(document.getElementById("qr2"), {
+      text: "WIFI:T:WPA;S:RobotFutbol2;P:goat0204;H:false;;",
+      width: 220, height: 220,
+      colorDark: "#cc0000", colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.M
+    });
+
+
+    // --- GAME LOGIC ---
+    let scoreAzul = 0;
+    let scoreRojo = 0;
+    
+    // Timer variables (5 minutes = 300 seconds)
+    const MATCH_TIME = 300; 
+    let timeLeft = MATCH_TIME;
+    let timerInterval = null;
+    let isRunning = false;
+
+    // Element references
+    const setupScreen = document.getElementById('setup-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const scoreAzulEl = document.getElementById('score-azul');
+    const scoreRojoEl = document.getElementById('score-rojo');
+    const timerEl = document.getElementById('timer');
+    const btnPlayPause = document.getElementById('btn-playpause');
+    const modal = document.getElementById('winner-modal');
+    const winnerText = document.getElementById('winner-text');
+    const winnerCardBg = document.getElementById('winner-card-bg');
+
+    function showGameScreen() {
+      setupScreen.classList.add('hidden');
+      setTimeout(() => {
+        gameScreen.classList.remove('hidden');
+      }, 500); // Wait for transition
+    }
+
+    function changeScore(team, amount) {
+      if (team === 'azul') {
+        scoreAzul = Math.max(0, scoreAzul + amount);
+        scoreAzulEl.innerText = scoreAzul;
+      } else {
+        scoreRojo = Math.max(0, scoreRojo + amount);
+        scoreRojoEl.innerText = scoreRojo;
+      }
+    }
+
+    function updateTimerDisplay() {
+      let m = Math.floor(timeLeft / 60);
+      let s = timeLeft % 60;
+      timerEl.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+      if (timeLeft <= 30 && timeLeft > 0) {
+        timerEl.classList.add('danger');
+      } else {
+        timerEl.classList.remove('danger');
+      }
+    }
+
+    function toggleTimer() {
+      if (isRunning) {
+        clearInterval(timerInterval);
+        btnPlayPause.innerText = "REANUDAR";
+        isRunning = false;
+      } else {
+        if (timeLeft <= 0) return;
+        btnPlayPause.innerText = "PAUSAR";
+        isRunning = true;
+        timerInterval = setInterval(() => {
+          timeLeft--;
+          updateTimerDisplay();
+          
+          if (timeLeft <= 0) {
+            endMatch();
+          }
+        }, 1000);
+      }
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      isRunning = false;
+      timeLeft = MATCH_TIME;
+      updateTimerDisplay();
+      btnPlayPause.innerText = "INICIAR";
+    }
+
+    function endMatch() {
+      clearInterval(timerInterval);
+      isRunning = false;
+      
+      // Determine winner
+      if (scoreAzul > scoreRojo) {
+        winnerText.innerText = "¡GANA EQUIPO AZUL!";
+        winnerText.style.color = "#00f2ff";
+        winnerText.style.textShadow = "0 0 20px #00f2ff";
+        winnerCardBg.style.borderColor = "#00f2ff";
+      } else if (scoreRojo > scoreAzul) {
+        winnerText.innerText = "¡GANA EQUIPO ROJO!";
+        winnerText.style.color = "#ff3333";
+        winnerText.style.textShadow = "0 0 20px #ff3333";
+        winnerCardBg.style.borderColor = "#ff3333";
+      } else {
+        winnerText.innerText = "¡ES UN EMPATE!";
+        winnerText.style.color = "#fff";
+        winnerText.style.textShadow = "0 0 20px #fff";
+        winnerCardBg.style.borderColor = "#fff";
+      }
+
+      modal.classList.add('active');
+    }
+
+    function newGame() {
+      modal.classList.remove('active');
+      scoreAzul = 0;
+      scoreRojo = 0;
+      scoreAzulEl.innerText = scoreAzul;
+      scoreRojoEl.innerText = scoreRojo;
+      resetTimer();
+    }
+
+    // Initialize formatting
+    updateTimerDisplay();
+  </script>
+</body>
+</html>
